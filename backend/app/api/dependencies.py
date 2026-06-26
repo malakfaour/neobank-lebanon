@@ -3,10 +3,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, ExpiredSignatureError
 from app.core.security import decode_token
 from app.core.redis import is_blacklisted
-from app.schemas.user import CurrentUser
+from app.schemas.user import CurrentUser, UserRole
 
-# Extracts Bearer token from Authorization header
 bearer_scheme = HTTPBearer()
+
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
@@ -14,7 +14,6 @@ async def get_current_user(
     """
     FastAPI dependency — validates Bearer token and returns current user.
     Raises 401 on missing, invalid, expired, or blacklisted tokens.
-    Usage: user: CurrentUser = Depends(get_current_user)
     """
     token = credentials.credentials
 
@@ -33,7 +32,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Reject refresh tokens used as access tokens
     if payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,7 +49,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Check if token was blacklisted (logged out)
     if await is_blacklisted(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,4 +56,23 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return CurrentUser(id=user_id, token_jti=jti)
+    role = payload.get("role", UserRole.customer)
+
+    return CurrentUser(id=user_id, token_jti=jti, role=role)
+
+
+def require_role(*roles: UserRole):
+    """
+    FastAPI dependency factory — restricts route access to specified roles.
+    Usage: Depends(require_role(UserRole.admin))
+    """
+    async def role_checker(
+        current_user: CurrentUser = Depends(get_current_user),
+    ) -> CurrentUser:
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required roles: {[r.value for r in roles]}",
+            )
+        return current_user
+    return role_checker
