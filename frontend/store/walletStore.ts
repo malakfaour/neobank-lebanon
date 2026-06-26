@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 interface Wallet {
   id: string;
@@ -15,11 +16,16 @@ interface WalletState {
   getWalletByCurrency: (currency: "USD" | "LBP") => Wallet | undefined;
 }
 
-export const useWalletStore = create<WalletState>((set, get) => ({
-  wallets: [],
-  isLoading: false,
-  setWallets: (wallets) => set({ wallets }),
-  setLoading: (isLoading) => set({ isLoading }),
-  getWalletByCurrency: (currency) =>
-    get().wallets.find((w) => w.currency === currency),
-}));
+export const useWalletStore = create<WalletState>()(
+  devtools(
+    (set, get) => ({
+      wallets: [],
+      isLoading: false,
+      setWallets: (wallets) => set({ wallets }, false, "setWallets"),
+      setLoading: (isLoading) => set({ isLoading }, false, "setLoading"),
+      getWalletByCurrency: (currency) =>
+        get().wallets.find((w) => w.currency === currency),
+    }),
+    { name: "WalletStore", enabled: process.env.NODE_ENV === "development" }
+  )
+);
