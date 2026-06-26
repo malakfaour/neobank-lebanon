@@ -1,0 +1,79 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  backend-lint-test:
+    name: Ruff Lint + Pytest (Backend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install ruff pytest pytest-asyncio
+
+      - name: Ruff lint
+        run: |
+          cd backend
+          ruff check .
+
+      - name: Run tests
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          REDIS_URL: redis://localhost:6379
+          APP_ENV: development
+        run: |
+          cd backend
+          pytest
+
+  frontend-lint-test:
+    name: ESLint + Jest (Frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: ESLint
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Jest tests
+        run: |
+          cd frontend
+          npm test -- --passWithNoTests
+
+  docker-build-check:
+    name: Docker Compose Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy env file
+        run: cp .env.example .env
+
+      - name: Build services
+        run: docker compose build
