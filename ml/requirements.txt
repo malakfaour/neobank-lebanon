@@ -1,26 +1,27 @@
 # KYC Face Verification & Liveness
 deepface
 opencv-python
-
+ 
 # Fraud Detection
 xgboost
 scikit-learn
 imbalanced-learn
-
+ 
 # Exchange Rate Forecasting
 lightgbm
 prophet
-
+ 
 # Chatbot
 langchain
 langchain-groq
 groq
-
+ 
 # Data & Scheduling
 pandas
 numpy
 celery[redis]
-
+ 
 # Utilities
 python-dotenv
 httpx
+ 
