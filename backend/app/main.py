@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+from app.core.redis import redis_client
 
 app = FastAPI(
     title="NeoBank Lebanon API",
@@ -18,5 +19,14 @@ app.add_middleware(
 )
 
 @app.get("/health")
-def health_check():
-    return {"status": "ok", "env": settings.APP_ENV}
+async def health_check():
+    try:
+        await redis_client.ping()
+        redis_status = "ok"
+    except Exception:
+        redis_status = "unavailable"
+    return {
+        "status": "ok",
+        "env": settings.APP_ENV,
+        "redis": redis_status
+    }
