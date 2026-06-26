@@ -1,0 +1,45 @@
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    # Database
+    DATABASE_URL: str
+    DATABASE_URL_DIRECT: str = ""
+
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379"
+
+    # JWT
+    JWT_SECRET: str
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRE_MINUTES: int = 15
+    JWT_REFRESH_EXPIRE_DAYS: int = 7
+
+    # OTP
+    OTP_EXPIRE_MINUTES: int = 5
+
+    # App
+    APP_ENV: str = "development"
+
+    # ML
+    DEEPFACE_MODEL: str = "ArcFace"
+    GROQ_API_KEY: str = ""
+
+    # AWS / S3
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+    AWS_BUCKET_NAME: str = ""
+    AWS_REGION: str = "eu-central-1"
+
+    # Email
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+
+    # Frontend
+    NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
+
+    class Config:
+        env_file = "../.env"
+
+settings = Settings()
