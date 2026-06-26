@@ -1,3 +1,7 @@
+import logging
+logging.getLogger("app").setLevel(logging.WARNING)
+logging.getLogger("app").addHandler(logging.StreamHandler())
+
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
