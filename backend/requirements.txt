@@ -1,0 +1,31 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+alembic
+psycopg2-binary
+
+# Auth & Security
+pyjwt
+bcrypt
+python-multipart
+
+# Validation
+pydantic
+pydantic-settings
+
+# HTTP Client
+httpx
+
+# Cache & Queue
+redis
+celery[redis]
+
+# Notifications
+boto3
+
+# Utilities
+python-dotenv
+qrcode[pil]
