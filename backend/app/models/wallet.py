@@ -15,6 +15,8 @@ class Wallet(Base):
     user_id = Column(Integer, nullable=False, index=True)
     currency = Column(Enum(CurrencyEnum), nullable=False)
     balance = Column(Numeric(18, 4), default=0)
+    account_number = Column(String(16), unique=True, nullable=True)
+    iban = Column(String(34), unique=True, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
