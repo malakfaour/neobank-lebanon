@@ -12,7 +12,7 @@ class Wallet(Base):
     __tablename__ = "wallets"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, nullable=False, index=True)
     currency = Column(Enum(CurrencyEnum), nullable=False)
     balance = Column(Numeric(18, 4), default=0)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

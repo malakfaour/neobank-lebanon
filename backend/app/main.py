@@ -43,3 +43,6 @@ async def health_check():
         "env": settings.APP_ENV,
         "redis": redis_status,
     }
+
+from app.api.v1.endpoints.accounts import router as accounts_router
+app.include_router(accounts_router, prefix="/api/v1")
