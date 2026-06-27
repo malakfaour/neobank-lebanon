@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.core.redis import redis_client
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.exchange import router as exchange_router
+from app.api.v1.endpoints.notifications import router as notifications_router
 
 logging.getLogger("app").setLevel(logging.WARNING)
 logging.getLogger("app").addHandler(logging.StreamHandler())
@@ -28,7 +29,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(exchange_router)
-
+app.include_router(notifications_router)
 
 @app.get("/health")
 async def health_check():
