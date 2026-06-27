@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { useRouter } from "next/navigation";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
@@ -19,27 +18,31 @@ export default function Sidebar() {
   const router = useRouter();
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-100 px-4 py-6 z-20">
-      <div className="mb-8 px-2">
-        <span className="text-2xl font-bold text-black">neo<span className="text-[#00C853]">.</span></span>
-        <p className="text-gray-400 text-xs mt-0.5">NeoBank Lebanon</p>
+    <aside style={{ display: "none", position: "fixed", left: 0, top: 0, height: "100%", width: "240px", backgroundColor: "#fff", borderRight: "1px solid #F0F0F0", padding: "24px 16px", flexDirection: "column", zIndex: 20 }}
+      className="lg-sidebar">
+      <div style={{ marginBottom: "32px", paddingLeft: "8px" }}>
+        <div style={{ fontSize: "24px", fontWeight: "800", color: "#000" }}>neo<span style={{ color: "#00C853" }}>.</span></div>
+        <div style={{ color: "#aaa", fontSize: "12px", marginTop: "2px" }}>NeoBank Lebanon</div>
       </div>
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
         {links.map(({ href, label, icon }) => {
           const active = pathname === href;
           return (
-            <Link key={href} href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium transition-colors
-                ${active ? "bg-[#00C853]/10 text-[#00C853]" : "text-gray-500 hover:text-black hover:bg-gray-50"}`}>
-              <span className="text-lg">{icon}</span>
+            <Link key={href} href={href} style={{
+              display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "14px",
+              fontSize: "14px", fontWeight: "600", textDecoration: "none",
+              backgroundColor: active ? "#F0FDF4" : "transparent",
+              color: active ? "#00C853" : "#666",
+            }}>
+              <span style={{ fontSize: "18px" }}>{icon}</span>
               {label}
             </Link>
           );
         })}
       </nav>
       <button onClick={() => { logout(); router.push("/login"); }}
-        className="flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-        <span className="text-lg">🚪</span>Sign out
+        style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 12px", borderRadius: "14px", border: "none", backgroundColor: "transparent", fontSize: "14px", fontWeight: "600", color: "#aaa", cursor: "pointer" }}>
+        <span style={{ fontSize: "18px" }}>🚪</span>Sign out
       </button>
     </aside>
   );

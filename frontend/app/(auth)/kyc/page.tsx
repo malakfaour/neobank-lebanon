@@ -29,7 +29,7 @@ export default function KYCPage() {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraActive(true);
-    } catch { setError("Camera access denied. Please allow camera permissions."); }
+    } catch { setError("Camera access denied."); }
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -58,7 +58,7 @@ export default function KYCPage() {
   };
 
   const handleUpload = async () => {
-    if (!selfieBlob || !idFile) { setError("Both selfie and ID photo are required."); return; }
+    if (!selfieBlob || !idFile) { setError("Both selfie and ID are required."); return; }
     setUploading(true);
     setError("");
     try {
@@ -77,38 +77,61 @@ export default function KYCPage() {
         } catch {}
       }, 5000);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Upload failed. Please try again.");
+      setError(err?.response?.data?.detail || "Upload failed.");
     } finally { setUploading(false); }
   };
 
   useEffect(() => () => { clearInterval(pollRef.current!); }, []);
 
+  const Layout = ({ stepNum, title, subtitle, children }: { stepNum: number; title: string; subtitle: string; children: React.ReactNode }) => (
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ marginBottom: "24px", textAlign: "center" }}>
+        <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
+          neo<span style={{ color: "#00C853" }}>.</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
+          {[1, 2, 3].map((s) => (
+            <div key={s} style={{ height: "6px", borderRadius: "999px", backgroundColor: s <= stepNum ? "#00C853" : "#E5E7EB", width: s === stepNum ? "32px" : "16px", transition: "all 0.3s" }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>{title}</h2>
+        <p style={{ color: "#999", fontSize: "14px", marginBottom: "20px" }}>{subtitle}</p>
+        {children}
+      </div>
+    </div>
+  );
+
   if (step === "selfie") return (
-    <Layout step={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
-      {error && <ErrorBanner msg={error} />}
+    <Layout stepNum={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
+      {error && <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
       {!selfiePreview ? (
-        <div className="relative rounded-3xl overflow-hidden bg-gray-100 aspect-[3/4] w-full">
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+        <div style={{ position: "relative", borderRadius: "20px", overflow: "hidden", backgroundColor: "#F5F5F5", aspectRatio: "3/4", width: "100%" }}>
+          <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           {cameraActive && (
             <>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-64 rounded-full border-2 border-[#00C853] border-dashed opacity-70" />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                <div style={{ width: "180px", height: "240px", borderRadius: "50%", border: "2px dashed #00C853", opacity: 0.7 }} />
               </div>
-              <button onClick={captureSelfie}
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[#00C853] border-4 border-white shadow-lg" />
+              <button onClick={captureSelfie} style={{ position: "absolute", bottom: "20px", left: "50%", transform: "translateX(-50%)", width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#00C853", border: "4px solid #fff", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.2)" }} />
             </>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="rounded-3xl overflow-hidden aspect-[3/4] w-full">
-            <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+        <div>
+          <div style={{ borderRadius: "20px", overflow: "hidden", aspectRatio: "3/4" }}>
+            <img src={selfiePreview} alt="Selfie" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
-          <div className="flex gap-3">
+          <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
             <button onClick={() => { setSelfieBlob(null); setSelfiePreview(null); startCamera(); }}
-              className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-700 text-sm font-semibold">Retake</button>
+              style={{ flex: 1, padding: "13px", borderRadius: "14px", border: "1.5px solid #E5E7EB", backgroundColor: "#fff", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+              Retake
+            </button>
             <button onClick={() => setStep("id_upload")}
-              className="flex-1 py-3 rounded-2xl bg-[#00C853] text-white text-sm font-bold">Use this photo</button>
+              style={{ flex: 1, padding: "13px", borderRadius: "14px", border: "none", backgroundColor: "#00C853", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>
+              Use this photo
+            </button>
           </div>
         </div>
       )}
@@ -116,29 +139,30 @@ export default function KYCPage() {
   );
 
   if (step === "id_upload") return (
-    <Layout step={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
-      {error && <ErrorBanner msg={error} />}
-      <label className={`block w-full rounded-3xl border-2 border-dashed cursor-pointer overflow-hidden transition-colors
-        ${idPreview ? "border-[#00C853]" : "border-gray-200 hover:border-gray-300"}`}>
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+    <Layout stepNum={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
+      {error && <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+      <label style={{ display: "block", width: "100%", borderRadius: "20px", border: `2px dashed ${idPreview ? "#00C853" : "#E5E7EB"}`, cursor: "pointer", overflow: "hidden" }}>
+        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => {
           const f = e.target.files?.[0]; if (!f) return;
           setIdFile(f); setIdPreview(URL.createObjectURL(f)); setError("");
         }} />
         {idPreview
-          ? <img src={idPreview} alt="ID" className="w-full object-cover max-h-56" />
-          : <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-2xl">🪪</div>
-              <p className="text-gray-500 text-sm">Tap to upload ID photo</p>
-              <p className="text-gray-400 text-xs">JPG, PNG — max 10 MB</p>
+          ? <img src={idPreview} alt="ID" style={{ width: "100%", maxHeight: "220px", objectFit: "cover" }} />
+          : <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px", gap: "8px" }}>
+              <div style={{ fontSize: "32px" }}>🪪</div>
+              <p style={{ color: "#666", fontSize: "14px" }}>Tap to upload ID photo</p>
+              <p style={{ color: "#aaa", fontSize: "12px" }}>JPG, PNG — max 10 MB</p>
             </div>
         }
       </label>
-      {idPreview && <p className="text-[#00C853] text-sm text-center mt-2">✓ {idFile?.name}</p>}
-      <div className="flex gap-3 mt-4">
+      {idPreview && <p style={{ color: "#00C853", fontSize: "13px", textAlign: "center", marginTop: "8px" }}>✓ {idFile?.name}</p>}
+      <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
         <button onClick={() => { setStep("selfie"); setIdFile(null); setIdPreview(null); }}
-          className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-700 text-sm font-semibold">Back</button>
+          style={{ flex: 1, padding: "13px", borderRadius: "14px", border: "1.5px solid #E5E7EB", backgroundColor: "#fff", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}>
+          Back
+        </button>
         <button onClick={handleUpload} disabled={!idFile || uploading}
-          className="flex-1 py-3 rounded-2xl bg-[#00C853] disabled:opacity-40 text-white text-sm font-bold">
+          style={{ flex: 1, padding: "13px", borderRadius: "14px", border: "none", backgroundColor: !idFile || uploading ? "#E5E7EB" : "#00C853", color: !idFile || uploading ? "#999" : "#fff", fontSize: "14px", fontWeight: "700", cursor: !idFile || uploading ? "not-allowed" : "pointer" }}>
           {uploading ? "Uploading..." : "Submit"}
         </button>
       </div>
@@ -146,62 +170,41 @@ export default function KYCPage() {
   );
 
   return (
-    <Layout step={3} title="Verification status" subtitle="We're reviewing your documents.">
-      <div className="flex flex-col items-center gap-4 py-4">
+    <Layout stepNum={3} title="Verification status" subtitle="We're reviewing your documents.">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "16px 0" }}>
         {status === "pending" && <>
-          <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center text-3xl animate-pulse">⏳</div>
-          <div className="text-center">
-            <p className="font-bold text-black">Under review</p>
-            <p className="text-gray-500 text-sm mt-1">This usually takes under a minute.</p>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>⏳</div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontWeight: "700", color: "#000" }}>Under review</p>
+            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>This usually takes under a minute.</p>
           </div>
-          <div className="flex gap-1">
-            {[0,1,2].map((i) => <div key={i} className="w-2 h-2 rounded-full bg-[#00C853] animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+          <div style={{ display: "flex", gap: "6px" }}>
+            {[0, 1, 2].map((i) => (
+              <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#00C853", animation: "bounce 1s infinite", animationDelay: `${i * 0.15}s` }} />
+            ))}
           </div>
         </>}
         {status === "approved" && <>
-          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-3xl">✅</div>
-          <div className="text-center">
-            <p className="font-bold text-black">Identity verified</p>
-            <p className="text-gray-500 text-sm mt-1">Redirecting to your dashboard...</p>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>✅</div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontWeight: "700", color: "#000" }}>Identity verified</p>
+            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>Redirecting to your dashboard...</p>
           </div>
         </>}
         {(status === "rejected" || status === "flagged") && <>
-          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-3xl">❌</div>
-          <div className="text-center">
-            <p className="font-bold text-black">Verification failed</p>
-            <p className="text-gray-500 text-sm mt-1">{status === "flagged" ? "Under manual review. We'll notify you." : "Please try again."}</p>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>❌</div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontWeight: "700", color: "#000" }}>Verification failed</p>
+            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>{status === "flagged" ? "Under manual review." : "Please try again."}</p>
           </div>
           {status === "rejected" && (
             <button onClick={() => { setStep("selfie"); setSelfieBlob(null); setSelfiePreview(null); setIdFile(null); setIdPreview(null); setStatus("pending"); }}
-              className="w-full py-3 rounded-2xl bg-[#00C853] text-white text-sm font-bold">Try again</button>
+              style={{ width: "100%", padding: "13px", borderRadius: "14px", border: "none", backgroundColor: "#00C853", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>
+              Try again
+            </button>
           )}
         </>}
       </div>
     </Layout>
   );
-}
-
-function Layout({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center px-5 py-10">
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold text-black">neo<span className="text-[#00C853]">.</span></h1>
-        <div className="flex justify-center gap-2 mt-4">
-          {[1,2,3].map((s) => (
-            <div key={s} className={`h-1.5 rounded-full transition-all duration-300
-              ${s === step ? "w-8 bg-[#00C853]" : s < step ? "w-4 bg-[#00C853]/40" : "w-4 bg-gray-200"}`} />
-          ))}
-        </div>
-      </div>
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-black mb-1">{title}</h2>
-        <p className="text-gray-500 text-sm mb-5">{subtitle}</p>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function ErrorBanner({ msg }: { msg: string }) {
-  return <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">{msg}</div>;
 }

@@ -50,9 +50,7 @@ export default function OTPPage() {
       setError(err?.response?.data?.detail || "Invalid or expired code.");
       setDigits(Array(6).fill(""));
       inputs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleResend = async () => {
@@ -66,16 +64,19 @@ export default function OTPPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center px-5">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-black">neo<span className="text-[#00C853]">.</span></h1>
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ marginBottom: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
+          neo<span style={{ color: "#00C853" }}>.</span>
+        </div>
       </div>
 
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-black mb-1">Verify your number</h2>
-        <p className="text-gray-500 text-sm mb-6">Enter the 6-digit code sent to your phone.</p>
+      <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>Verify your number</h2>
+        <p style={{ color: "#999", fontSize: "14px", marginBottom: "24px" }}>Enter the 6-digit code sent to your phone.</p>
 
-        <div className="flex gap-2 justify-between mb-6" onPaste={handlePaste}>
+        {/* OTP boxes */}
+        <div style={{ display: "flex", gap: "8px", justifyContent: "space-between", marginBottom: "24px" }} onPaste={handlePaste}>
           {digits.map((d, i) => (
             <input
               key={i}
@@ -86,31 +87,34 @@ export default function OTPPage() {
               value={d}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              className={`w-12 h-14 text-center text-xl font-bold text-black bg-white rounded-2xl border-2 outline-none transition-colors
-                ${error ? "border-red-400" : d ? "border-[#00C853]" : "border-gray-200 focus:border-[#00C853]"}`}
+              style={{
+                width: "46px", height: "56px", textAlign: "center", fontSize: "22px", fontWeight: "700",
+                color: "#000", backgroundColor: "#fff", border: `2px solid ${error ? "#EF4444" : d ? "#00C853" : "#E5E7EB"}`,
+                borderRadius: "14px", outline: "none",
+              }}
             />
           ))}
         </div>
 
-        {error && <p className="mb-4 text-red-500 text-sm text-center">{error}</p>}
-        {resent && <p className="mb-4 text-[#00C853] text-sm text-center">Code resent successfully.</p>}
+        {error && <p style={{ color: "#EF4444", fontSize: "13px", textAlign: "center", marginBottom: "16px" }}>{error}</p>}
+        {resent && <p style={{ color: "#00C853", fontSize: "13px", textAlign: "center", marginBottom: "16px" }}>Code resent successfully.</p>}
 
         <button
           onClick={handleSubmit}
           disabled={loading || digits.join("").length < 6}
-          className="w-full bg-[#00C853] hover:bg-[#00B347] disabled:opacity-40 text-white font-bold rounded-2xl py-3.5 text-sm transition-colors"
+          style={{ width: "100%", backgroundColor: digits.join("").length < 6 ? "#E5E7EB" : "#00C853", color: digits.join("").length < 6 ? "#999" : "#fff", fontWeight: "700", fontSize: "15px", border: "none", borderRadius: "14px", padding: "14px", cursor: digits.join("").length < 6 ? "not-allowed" : "pointer" }}
         >
           {loading ? "Verifying..." : "Verify"}
         </button>
 
-        <p className="text-center text-gray-500 text-sm mt-4">
+        <p style={{ textAlign: "center", color: "#999", fontSize: "13px", marginTop: "16px" }}>
           Didn't get a code?{" "}
-          <button onClick={handleResend} className="text-[#00C853] font-semibold">Resend</button>
+          <button onClick={handleResend} style={{ color: "#00C853", fontWeight: "600", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>Resend</button>
         </p>
       </div>
 
-      <p className="text-gray-500 text-sm mt-5">
-        <Link href="/login" className="text-[#00C853] font-semibold">← Back to sign in</Link>
+      <p style={{ color: "#999", fontSize: "13px", marginTop: "20px" }}>
+        <Link href="/login" style={{ color: "#00C853", fontWeight: "600", textDecoration: "none" }}>← Back to sign in</Link>
       </p>
     </div>
   );

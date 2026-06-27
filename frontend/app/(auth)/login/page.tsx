@@ -40,68 +40,72 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center px-5">
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      
       {/* Logo */}
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-black">
-          neo<span className="text-[#00C853]">.</span>
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">by NeoBank Lebanon</p>
+      <div style={{ marginBottom: "32px", textAlign: "center" }}>
+        <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
+          neo<span style={{ color: "#00C853" }}>.</span>
+        </div>
+        <div style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>by NeoBank Lebanon</div>
       </div>
 
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-black mb-1">Welcome back</h2>
-        <p className="text-gray-500 text-sm mb-6">Sign in to your account</p>
+      {/* Card */}
+      <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>Welcome back</h2>
+        <p style={{ color: "#999", fontSize: "14px", marginBottom: "24px" }}>Sign in to your account</p>
 
         {errors.general && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">
+          <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px 16px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>
             {errors.general}
           </div>
         )}
 
-        {/* Phone */}
-        <div className="mb-4">
-          <label className="text-sm font-medium text-gray-700 mb-1.5 block">Mobile number</label>
-          <div className={`flex items-center bg-white border rounded-2xl px-4 py-3 gap-2 ${errors.phone ? "border-red-400" : "border-gray-200 focus-within:border-[#00C853]"}`}>
-            <span className="text-sm text-gray-500">🇱🇧 +961</span>
-            <div className="w-px h-4 bg-gray-200" />
+        {/* Phone field */}
+        <div style={{ marginBottom: "16px" }}>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>Mobile number</label>
+          <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${errors.phone ? "#EF4444" : "#E5E7EB"}`, borderRadius: "14px", padding: "12px 16px", gap: "10px", backgroundColor: "#fff" }}>
+            <span style={{ fontSize: "13px", color: "#666", whiteSpace: "nowrap" }}>🇱🇧 +961</span>
+            <div style={{ width: "1px", height: "16px", backgroundColor: "#E5E7EB" }} />
             <input
               type="tel"
               placeholder="70 123 456"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="flex-1 text-sm text-black outline-none placeholder-gray-400"
+              style={{ flex: 1, border: "none", outline: "none", fontSize: "14px", color: "#000", backgroundColor: "transparent" }}
             />
           </div>
-          {errors.phone && <p className="mt-1 text-red-500 text-xs">{errors.phone}</p>}
+          {errors.phone && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{errors.phone}</p>}
         </div>
 
-        {/* Passcode */}
-        <div className="mb-6">
-          <label className="text-sm font-medium text-gray-700 mb-1.5 block">Passcode</label>
+        {/* Passcode field */}
+        <div style={{ marginBottom: "24px" }}>
+          <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>Passcode</label>
           <input
             type="password"
             placeholder="••••••"
             value={form.passcode}
             onChange={(e) => setForm({ ...form, passcode: e.target.value })}
             onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            className={`w-full border rounded-2xl px-4 py-3 text-sm text-black outline-none placeholder-gray-400 ${errors.passcode ? "border-red-400" : "border-gray-200 focus:border-[#00C853]"}`}
+            style={{ width: "100%", border: `1.5px solid ${errors.passcode ? "#EF4444" : "#E5E7EB"}`, borderRadius: "14px", padding: "12px 16px", fontSize: "14px", color: "#000", outline: "none", boxSizing: "border-box" }}
           />
-          {errors.passcode && <p className="mt-1 text-red-500 text-xs">{errors.passcode}</p>}
+          {errors.passcode && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{errors.passcode}</p>}
         </div>
 
+        {/* Button */}
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full bg-[#00C853] hover:bg-[#00B347] disabled:opacity-50 text-white font-bold rounded-2xl py-3.5 text-sm transition-colors"
+          style={{ width: "100%", backgroundColor: loading ? "#86EFAC" : "#00C853", color: "#fff", fontWeight: "700", fontSize: "15px", border: "none", borderRadius: "14px", padding: "14px", cursor: loading ? "not-allowed" : "pointer" }}
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </div>
 
-      <p className="text-gray-500 text-sm mt-5">
+      {/* Footer */}
+      <p style={{ color: "#999", fontSize: "13px", marginTop: "20px" }}>
         No account?{" "}
-        <Link href="/register" className="text-[#00C853] font-semibold">Create one</Link>
+        <Link href="/register" style={{ color: "#00C853", fontWeight: "600", textDecoration: "none" }}>Create one</Link>
       </p>
     </div>
   );
