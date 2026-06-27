@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 
 MARKET_TIMEZONE = "Asia/Beirut"
-MARKET_OPEN_TIME = time(9, 0)
+MARKET_OPEN_TIME = time(8, 0)
 MARKET_CLOSE_TIME = time(17, 0)
 
 
