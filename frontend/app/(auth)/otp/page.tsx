@@ -46,8 +46,9 @@ export default function OTPPage() {
     try {
       await api.post("/auth/verify-otp", { otp: code });
       router.push("/kyc");
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Invalid or expired code.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid or expired code.";
+      setError(message);
       setDigits(Array(6).fill(""));
       inputs.current[0]?.focus();
     } finally { setLoading(false); }
@@ -63,6 +64,8 @@ export default function OTPPage() {
     } catch { setError("Could not resend. Try again."); }
   };
 
+  const filled = digits.join("").length;
+
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
       <div style={{ marginBottom: "32px", textAlign: "center" }}>
@@ -75,7 +78,6 @@ export default function OTPPage() {
         <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>Verify your number</h2>
         <p style={{ color: "#999", fontSize: "14px", marginBottom: "24px" }}>Enter the 6-digit code sent to your phone.</p>
 
-        {/* OTP boxes */}
         <div style={{ display: "flex", gap: "8px", justifyContent: "space-between", marginBottom: "24px" }} onPaste={handlePaste}>
           {digits.map((d, i) => (
             <input
@@ -87,11 +89,7 @@ export default function OTPPage() {
               value={d}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              style={{
-                width: "46px", height: "56px", textAlign: "center", fontSize: "22px", fontWeight: "700",
-                color: "#000", backgroundColor: "#fff", border: `2px solid ${error ? "#EF4444" : d ? "#00C853" : "#E5E7EB"}`,
-                borderRadius: "14px", outline: "none",
-              }}
+              style={{ width: "46px", height: "56px", textAlign: "center", fontSize: "22px", fontWeight: "700", color: "#000", backgroundColor: "#fff", border: `2px solid ${error ? "#EF4444" : d ? "#00C853" : "#E5E7EB"}`, borderRadius: "14px", outline: "none" }}
             />
           ))}
         </div>
@@ -101,14 +99,14 @@ export default function OTPPage() {
 
         <button
           onClick={handleSubmit}
-          disabled={loading || digits.join("").length < 6}
-          style={{ width: "100%", backgroundColor: digits.join("").length < 6 ? "#E5E7EB" : "#00C853", color: digits.join("").length < 6 ? "#999" : "#fff", fontWeight: "700", fontSize: "15px", border: "none", borderRadius: "14px", padding: "14px", cursor: digits.join("").length < 6 ? "not-allowed" : "pointer" }}
+          disabled={loading || filled < 6}
+          style={{ width: "100%", backgroundColor: filled < 6 ? "#E5E7EB" : "#00C853", color: filled < 6 ? "#999" : "#fff", fontWeight: "700", fontSize: "15px", border: "none", borderRadius: "14px", padding: "14px", cursor: filled < 6 ? "not-allowed" : "pointer" }}
         >
           {loading ? "Verifying..." : "Verify"}
         </button>
 
         <p style={{ textAlign: "center", color: "#999", fontSize: "13px", marginTop: "16px" }}>
-          Didn't get a code?{" "}
+          Didn&apos;t get a code?{" "}
           <button onClick={handleResend} style={{ color: "#00C853", fontWeight: "600", background: "none", border: "none", cursor: "pointer", fontSize: "13px" }}>Resend</button>
         </p>
       </div>

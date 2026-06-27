@@ -7,6 +7,39 @@ import api from "@/lib/axios";
 type Step = "selfie" | "id_upload" | "status";
 type KYCStatus = "pending" | "approved" | "rejected" | "flagged";
 
+// Layout moved outside component to fix ESLint error
+function KYCLayout({ stepNum, title, subtitle, children }: {
+  stepNum: number; title: string; subtitle: string; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+      <div style={{ marginBottom: "24px", textAlign: "center" }}>
+        <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
+          neo<span style={{ color: "#00C853" }}>.</span>
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
+          {[1, 2, 3].map((s) => (
+            <div key={s} style={{ height: "6px", borderRadius: "999px", backgroundColor: s <= stepNum ? "#00C853" : "#E5E7EB", width: s === stepNum ? "32px" : "16px", transition: "all 0.3s" }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
+        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>{title}</h2>
+        <p style={{ color: "#999", fontSize: "14px", marginBottom: "20px" }}>{subtitle}</p>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ErrorBanner({ msg }: { msg: string }) {
+  return (
+    <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>
+      {msg}
+    </div>
+  );
+}
+
 export default function KYCPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("selfie");
@@ -22,6 +55,12 @@ export default function KYCPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  }, []);
+
   const startCamera = useCallback(async () => {
     setError("");
     try {
@@ -32,16 +71,13 @@ export default function KYCPage() {
     } catch { setError("Camera access denied."); }
   }, []);
 
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    setCameraActive(false);
-  }, []);
+useEffect(() => {
+  if (step !== "selfie") return;
+  const timer = setTimeout(() => { startCamera(); }, 0);
+  return () => { clearTimeout(timer); stopCamera(); };
+}, [step, startCamera, stopCamera]);
 
-  useEffect(() => {
-    if (step === "selfie") startCamera();
-    return () => stopCamera();
-  }, [step]);
+  useEffect(() => () => { clearInterval(pollRef.current!); }, []);
 
   const captureSelfie = () => {
     if (!videoRef.current) return;
@@ -74,38 +110,17 @@ export default function KYCPage() {
           setStatus(s);
           if (s === "approved") { clearInterval(pollRef.current!); setTimeout(() => router.push("/dashboard"), 2000); }
           else if (s === "rejected") clearInterval(pollRef.current!);
-        } catch {}
+        } catch { /* ignore poll errors */ }
       }, 5000);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Upload failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      setError(message);
     } finally { setUploading(false); }
   };
 
-  useEffect(() => () => { clearInterval(pollRef.current!); }, []);
-
-  const Layout = ({ stepNum, title, subtitle, children }: { stepNum: number; title: string; subtitle: string; children: React.ReactNode }) => (
-    <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div style={{ marginBottom: "24px", textAlign: "center" }}>
-        <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
-          neo<span style={{ color: "#00C853" }}>.</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
-          {[1, 2, 3].map((s) => (
-            <div key={s} style={{ height: "6px", borderRadius: "999px", backgroundColor: s <= stepNum ? "#00C853" : "#E5E7EB", width: s === stepNum ? "32px" : "16px", transition: "all 0.3s" }} />
-          ))}
-        </div>
-      </div>
-      <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
-        <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>{title}</h2>
-        <p style={{ color: "#999", fontSize: "14px", marginBottom: "20px" }}>{subtitle}</p>
-        {children}
-      </div>
-    </div>
-  );
-
   if (step === "selfie") return (
-    <Layout stepNum={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
-      {error && <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+    <KYCLayout stepNum={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
+      {error && <ErrorBanner msg={error} />}
       {!selfiePreview ? (
         <div style={{ position: "relative", borderRadius: "20px", overflow: "hidden", backgroundColor: "#F5F5F5", aspectRatio: "3/4", width: "100%" }}>
           <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -121,7 +136,8 @@ export default function KYCPage() {
       ) : (
         <div>
           <div style={{ borderRadius: "20px", overflow: "hidden", aspectRatio: "3/4" }}>
-            <img src={selfiePreview} alt="Selfie" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={selfiePreview} alt="Selfie preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
           <div style={{ display: "flex", gap: "12px", marginTop: "16px" }}>
             <button onClick={() => { setSelfieBlob(null); setSelfiePreview(null); startCamera(); }}
@@ -135,24 +151,29 @@ export default function KYCPage() {
           </div>
         </div>
       )}
-    </Layout>
+    </KYCLayout>
   );
 
   if (step === "id_upload") return (
-    <Layout stepNum={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
-      {error && <div style={{ backgroundColor: "#FEF2F2", border: "1px solid #FECACA", borderRadius: "12px", padding: "12px", color: "#DC2626", fontSize: "13px", marginBottom: "16px" }}>{error}</div>}
+    <KYCLayout stepNum={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
+      {error && <ErrorBanner msg={error} />}
       <label style={{ display: "block", width: "100%", borderRadius: "20px", border: `2px dashed ${idPreview ? "#00C853" : "#E5E7EB"}`, cursor: "pointer", overflow: "hidden" }}>
         <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => {
           const f = e.target.files?.[0]; if (!f) return;
           setIdFile(f); setIdPreview(URL.createObjectURL(f)); setError("");
         }} />
         {idPreview
-          ? <img src={idPreview} alt="ID" style={{ width: "100%", maxHeight: "220px", objectFit: "cover" }} />
-          : <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px", gap: "8px" }}>
+          ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={idPreview} alt="ID preview" style={{ width: "100%", maxHeight: "220px", objectFit: "cover" }} />
+          )
+          : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 20px", gap: "8px" }}>
               <div style={{ fontSize: "32px" }}>🪪</div>
               <p style={{ color: "#666", fontSize: "14px" }}>Tap to upload ID photo</p>
               <p style={{ color: "#aaa", fontSize: "12px" }}>JPG, PNG — max 10 MB</p>
             </div>
+          )
         }
       </label>
       {idPreview && <p style={{ color: "#00C853", fontSize: "13px", textAlign: "center", marginTop: "8px" }}>✓ {idFile?.name}</p>}
@@ -166,45 +187,51 @@ export default function KYCPage() {
           {uploading ? "Uploading..." : "Submit"}
         </button>
       </div>
-    </Layout>
+    </KYCLayout>
   );
 
   return (
-    <Layout stepNum={3} title="Verification status" subtitle="We're reviewing your documents.">
+    <KYCLayout stepNum={3} title="Verification status" subtitle="We&apos;re reviewing your documents.">
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", padding: "16px 0" }}>
-        {status === "pending" && <>
-          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>⏳</div>
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontWeight: "700", color: "#000" }}>Under review</p>
-            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>This usually takes under a minute.</p>
-          </div>
-          <div style={{ display: "flex", gap: "6px" }}>
-            {[0, 1, 2].map((i) => (
-              <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#00C853", animation: "bounce 1s infinite", animationDelay: `${i * 0.15}s` }} />
-            ))}
-          </div>
-        </>}
-        {status === "approved" && <>
-          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>✅</div>
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontWeight: "700", color: "#000" }}>Identity verified</p>
-            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>Redirecting to your dashboard...</p>
-          </div>
-        </>}
-        {(status === "rejected" || status === "flagged") && <>
-          <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>❌</div>
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontWeight: "700", color: "#000" }}>Verification failed</p>
-            <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>{status === "flagged" ? "Under manual review." : "Please try again."}</p>
-          </div>
-          {status === "rejected" && (
-            <button onClick={() => { setStep("selfie"); setSelfieBlob(null); setSelfiePreview(null); setIdFile(null); setIdPreview(null); setStatus("pending"); }}
-              style={{ width: "100%", padding: "13px", borderRadius: "14px", border: "none", backgroundColor: "#00C853", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>
-              Try again
-            </button>
-          )}
-        </>}
+        {status === "pending" && (
+          <>
+            <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FFFBEB", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>⏳</div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontWeight: "700", color: "#000" }}>Under review</p>
+              <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>This usually takes under a minute.</p>
+            </div>
+            <div style={{ display: "flex", gap: "6px" }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#00C853" }} />
+              ))}
+            </div>
+          </>
+        )}
+        {status === "approved" && (
+          <>
+            <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>✅</div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontWeight: "700", color: "#000" }}>Identity verified</p>
+              <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>Redirecting to your dashboard...</p>
+            </div>
+          </>
+        )}
+        {(status === "rejected" || status === "flagged") && (
+          <>
+            <div style={{ width: "64px", height: "64px", borderRadius: "50%", backgroundColor: "#FEF2F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px" }}>❌</div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontWeight: "700", color: "#000" }}>Verification failed</p>
+              <p style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>{status === "flagged" ? "Under manual review." : "Please try again."}</p>
+            </div>
+            {status === "rejected" && (
+              <button onClick={() => { setStep("selfie"); setSelfieBlob(null); setSelfiePreview(null); setIdFile(null); setIdPreview(null); setStatus("pending"); }}
+                style={{ width: "100%", padding: "13px", borderRadius: "14px", border: "none", backgroundColor: "#00C853", color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>
+                Try again
+              </button>
+            )}
+          </>
+        )}
       </div>
-    </Layout>
+    </KYCLayout>
   );
 }

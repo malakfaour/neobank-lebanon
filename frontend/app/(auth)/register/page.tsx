@@ -6,6 +6,43 @@ import Link from "next/link";
 import api from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 
+const inputStyle = (hasError: boolean): React.CSSProperties => ({
+  width: "100%",
+  border: `1.5px solid ${hasError ? "#EF4444" : "#E5E7EB"}`,
+  borderRadius: "14px",
+  padding: "12px 16px",
+  fontSize: "14px",
+  color: "#000",
+  outline: "none",
+  boxSizing: "border-box",
+  backgroundColor: "#fff",
+});
+
+interface FieldProps {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  type?: string;
+  placeholder: string;
+  error?: string;
+}
+
+function Field({ label, value, onChange, type = "text", placeholder, error }: FieldProps) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
+      <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={inputStyle(!!error)}
+      />
+      {error && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{error}</p>}
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { setUser, setToken } = useAuthStore();
@@ -39,33 +76,11 @@ export default function RegisterPage() {
       setToken(res.data.access_token);
       setUser(res.data.user);
       router.push("/kyc");
-    } catch (err: any) {
-      setErrors({ general: err?.response?.data?.detail || "Registration failed." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Registration failed.";
+      setErrors({ general: message });
     } finally { setLoading(false); }
   };
-
-  const inputStyle = (hasError: boolean) => ({
-    width: "100%", border: `1.5px solid ${hasError ? "#EF4444" : "#E5E7EB"}`,
-    borderRadius: "14px", padding: "12px 16px", fontSize: "14px",
-    color: "#000", outline: "none", boxSizing: "border-box" as const,
-    backgroundColor: "#fff",
-  });
-
-  const Field = ({ label, field, type = "text", placeholder }: {
-    label: string; field: keyof typeof form; type?: string; placeholder: string;
-  }) => (
-    <div style={{ marginBottom: "16px" }}>
-      <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>{label}</label>
-      <input
-        type={type}
-        placeholder={placeholder}
-        value={form[field]}
-        onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-        style={inputStyle(!!errors[field])}
-      />
-      {errors[field] && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{errors[field]}</p>}
-    </div>
-  );
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
@@ -86,11 +101,11 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <Field label="Full name" field="full_name" placeholder="Ali Hassan" />
-        <Field label="Email" field="email" type="email" placeholder="ali@example.com" />
-        <Field label="Mobile number" field="phone" type="tel" placeholder="+961 70 123 456" />
-        <Field label="Passcode" field="passcode" type="password" placeholder="••••••" />
-        <Field label="Confirm passcode" field="confirm_passcode" type="password" placeholder="••••••" />
+        <Field label="Full name" value={form.full_name} onChange={(v) => setForm({ ...form, full_name: v })} placeholder="Ali Hassan" error={errors.full_name} />
+        <Field label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" placeholder="ali@example.com" error={errors.email} />
+        <Field label="Mobile number" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} type="tel" placeholder="+961 70 123 456" error={errors.phone} />
+        <Field label="Passcode" value={form.passcode} onChange={(v) => setForm({ ...form, passcode: v })} type="password" placeholder="••••••" error={errors.passcode} />
+        <Field label="Confirm passcode" value={form.confirm_passcode} onChange={(v) => setForm({ ...form, confirm_passcode: v })} type="password" placeholder="••••••" error={errors.confirm_passcode} />
 
         <button
           onClick={handleSubmit}

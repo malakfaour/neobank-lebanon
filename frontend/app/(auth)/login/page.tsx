@@ -32,8 +32,9 @@ export default function LoginPage() {
       setToken(res.data.access_token);
       setUser(res.data.user);
       router.push("/dashboard");
-    } catch (err: any) {
-      setErrors({ general: err?.response?.data?.detail || "Invalid phone or passcode." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid phone or passcode.";
+      setErrors({ general: message });
     } finally {
       setLoading(false);
     }
@@ -41,8 +42,6 @@ export default function LoginPage() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#F5F5F5", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      
-      {/* Logo */}
       <div style={{ marginBottom: "32px", textAlign: "center" }}>
         <div style={{ fontSize: "32px", fontWeight: "800", color: "#000", letterSpacing: "-1px" }}>
           neo<span style={{ color: "#00C853" }}>.</span>
@@ -50,7 +49,6 @@ export default function LoginPage() {
         <div style={{ color: "#999", fontSize: "13px", marginTop: "4px" }}>by NeoBank Lebanon</div>
       </div>
 
-      {/* Card */}
       <div style={{ width: "100%", maxWidth: "380px", backgroundColor: "#fff", borderRadius: "24px", padding: "28px", boxShadow: "0 2px 20px rgba(0,0,0,0.08)" }}>
         <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#000", marginBottom: "4px" }}>Welcome back</h2>
         <p style={{ color: "#999", fontSize: "14px", marginBottom: "24px" }}>Sign in to your account</p>
@@ -61,7 +59,6 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Phone field */}
         <div style={{ marginBottom: "16px" }}>
           <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>Mobile number</label>
           <div style={{ display: "flex", alignItems: "center", border: `1.5px solid ${errors.phone ? "#EF4444" : "#E5E7EB"}`, borderRadius: "14px", padding: "12px 16px", gap: "10px", backgroundColor: "#fff" }}>
@@ -78,7 +75,6 @@ export default function LoginPage() {
           {errors.phone && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{errors.phone}</p>}
         </div>
 
-        {/* Passcode field */}
         <div style={{ marginBottom: "24px" }}>
           <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#333", marginBottom: "8px" }}>Passcode</label>
           <input
@@ -92,7 +88,6 @@ export default function LoginPage() {
           {errors.passcode && <p style={{ color: "#EF4444", fontSize: "12px", marginTop: "6px" }}>{errors.passcode}</p>}
         </div>
 
-        {/* Button */}
         <button
           onClick={handleSubmit}
           disabled={loading}
@@ -102,7 +97,6 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Footer */}
       <p style={{ color: "#999", fontSize: "13px", marginTop: "20px" }}>
         No account?{" "}
         <Link href="/register" style={{ color: "#00C853", fontWeight: "600", textDecoration: "none" }}>Create one</Link>
