@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # JWT
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 15
+    JWT_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_EXPIRE_DAYS: int = 7
 
     # OTP
@@ -40,6 +40,6 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
 
     class Config:
-        env_file = "../.env"
+        env_file = ".env"
 
 settings = Settings()

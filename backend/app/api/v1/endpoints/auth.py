@@ -12,7 +12,7 @@ from app.services.rate_limiter import check_rate_limit
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Temporary fake user — replaced by DB in future tickets
+# TODO: Replace with real DB user lookup (Member 3 - feature/kyc)
 FAKE_USER = {"id": "user-1", "email": "test@neobank.com", "password": "secret123"}
 
 
@@ -41,7 +41,6 @@ class VerifyOTPRequest(BaseModel):
 @router.post("/login", summary="Login with email and password")
 async def login(request: Request, body: LoginRequest):
     await check_rate_limit(request, key_prefix="login", max_requests=5, window_seconds=60)
-
     if body.email != FAKE_USER["email"] or body.password != FAKE_USER["password"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,13 +111,15 @@ async def send_otp(
 
 @router.post("/verify-otp", summary="Verify OTP code")
 async def verify_otp(
+    request: Request,
     body: VerifyOTPRequest,
     current_user: CurrentUser = Depends(get_current_user)
 ):
+    await check_rate_limit(request, key_prefix="verify_otp", max_requests=5, window_seconds=300)
     valid = await verify_and_consume_otp(body.user_id, body.code)
     if not valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired OTP"
         )
-    return {"message": "OTP verified successfully"}
+    return {"message": "OTP verified
