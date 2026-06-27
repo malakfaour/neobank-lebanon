@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.redis import redis_client
-from app.api.v1.endpoints.auth import router as auth_router
+from app.api.auth import router as auth_router
 from app.api.v1.endpoints.exchange import router as exchange_router
 
 logging.getLogger("app").setLevel(logging.WARNING)

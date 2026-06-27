@@ -32,3 +32,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     kyc_records = relationship("KYCRecord", back_populates="user")
+    wallets = relationship("Wallet", back_populates="user", cascade="all, delete-orphan")

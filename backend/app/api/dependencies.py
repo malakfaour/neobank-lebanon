@@ -1,8 +1,9 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, ExpiredSignatureError
-from app.core.security import decode_token
+from jwt import ExpiredSignatureError, InvalidTokenError
+
 from app.core.redis import is_blacklisted
+from app.core.security import decode_token
 from app.schemas.user import CurrentUser, UserRole
 
 bearer_scheme = HTTPBearer()
@@ -25,7 +26,7 @@ async def get_current_user(
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
