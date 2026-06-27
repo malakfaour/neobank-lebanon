@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_BUCKET_NAME: str = ""
     AWS_REGION: str = "eu-central-1"
+    S3_BUCKET: str = ""
+    S3_REGION: str = ""
+    S3_ENDPOINT_URL: str = ""
 
     # Email
     SMTP_HOST: str = "smtp.gmail.com"
