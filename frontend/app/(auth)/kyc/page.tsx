@@ -18,26 +18,18 @@ export default function KYCPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [cameraActive, setCameraActive] = useState(false);
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Start camera
   const startCamera = useCallback(async () => {
     setError("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraActive(true);
-    } catch {
-      setError("Camera access denied. Please allow camera permissions.");
-    }
+    } catch { setError("Camera access denied. Please allow camera permissions."); }
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -51,7 +43,6 @@ export default function KYCPage() {
     return () => stopCamera();
   }, [step]);
 
-  // Capture selfie
   const captureSelfie = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement("canvas");
@@ -66,253 +57,151 @@ export default function KYCPage() {
     }, "image/jpeg");
   };
 
-  const retakeSelfie = () => {
-    setSelfieBlob(null);
-    setSelfiePreview(null);
-    startCamera();
-  };
-
-  // ID file pick
-  const handleIdFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIdFile(file);
-    setIdPreview(URL.createObjectURL(file));
-    setError("");
-  };
-
-  // Upload both
   const handleUpload = async () => {
-    if (!selfieBlob || !idFile) {
-      setError("Both selfie and ID photo are required.");
-      return;
-    }
+    if (!selfieBlob || !idFile) { setError("Both selfie and ID photo are required."); return; }
     setUploading(true);
     setError("");
     try {
       const form = new FormData();
       form.append("selfie", selfieBlob, "selfie.jpg");
       form.append("id_photo", idFile);
-      await api.post("/kyc/upload", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post("/kyc/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
       setStep("status");
-      startPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await api.get("/kyc/status");
+          const s: KYCStatus = res.data.kyc_status;
+          setStatus(s);
+          if (s === "approved") { clearInterval(pollRef.current!); setTimeout(() => router.push("/dashboard"), 2000); }
+          else if (s === "rejected") clearInterval(pollRef.current!);
+        } catch {}
+      }, 5000);
     } catch (err: any) {
       setError(err?.response?.data?.detail || "Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Poll status every 5s
-  const startPolling = () => {
-    pollRef.current = setInterval(async () => {
-      try {
-        const res = await api.get("/kyc/status");
-        const s: KYCStatus = res.data.kyc_status;
-        setStatus(s);
-        if (s === "approved") {
-          clearInterval(pollRef.current!);
-          setTimeout(() => router.push("/dashboard"), 2000);
-        } else if (s === "rejected") {
-          clearInterval(pollRef.current!);
-        }
-      } catch {}
-    }, 5000);
+    } finally { setUploading(false); }
   };
 
   useEffect(() => () => { clearInterval(pollRef.current!); }, []);
 
-  // ── STEP 1: Selfie ──────────────────────────────────────────────
-  if (step === "selfie") {
-    return (
-      <Layout step={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
-        {error && <ErrorBanner msg={error} />}
-        {!selfiePreview ? (
-          <div className="relative rounded-2xl overflow-hidden bg-gray-800 aspect-[3/4] w-full">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
-            {cameraActive && (
-              <>
-                {/* Face guide oval */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-64 rounded-full border-2 border-emerald-400 border-dashed opacity-60" />
-                </div>
-                <button
-                  onClick={captureSelfie}
-                  className="absolute bottom-5 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-emerald-500 hover:bg-emerald-400 border-4 border-white transition-colors"
-                />
-              </>
-            )}
-            {!cameraActive && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <button onClick={startCamera} className="text-emerald-400 text-sm font-medium">
-                  Start camera
-                </button>
+  if (step === "selfie") return (
+    <Layout step={1} title="Take a selfie" subtitle="Make sure your face is clearly visible and well lit.">
+      {error && <ErrorBanner msg={error} />}
+      {!selfiePreview ? (
+        <div className="relative rounded-3xl overflow-hidden bg-gray-100 aspect-[3/4] w-full">
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+          {cameraActive && (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-48 h-64 rounded-full border-2 border-[#00C853] border-dashed opacity-70" />
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="rounded-2xl overflow-hidden aspect-[3/4] w-full">
-              <img src={selfiePreview} alt="Selfie preview" className="w-full h-full object-cover" />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={retakeSelfie}
-                className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-300 text-sm font-medium hover:border-gray-500 transition-colors"
-              >
-                Retake
-              </button>
-              <button
-                onClick={() => setStep("id_upload")}
-                className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors"
-              >
-                Use this photo
-              </button>
-            </div>
-          </div>
-        )}
-      </Layout>
-    );
-  }
-
-  // ── STEP 2: ID Upload ───────────────────────────────────────────
-  if (step === "id_upload") {
-    return (
-      <Layout step={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
-        {error && <ErrorBanner msg={error} />}
-        <label className={`block w-full rounded-2xl border-2 border-dashed cursor-pointer transition-colors overflow-hidden
-          ${idPreview ? "border-emerald-500" : "border-gray-700 hover:border-gray-500"}`}>
-          <input type="file" accept="image/*" className="hidden" onChange={handleIdFile} />
-          {idPreview ? (
-            <img src={idPreview} alt="ID preview" className="w-full object-cover max-h-56" />
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gray-800 flex items-center justify-center text-2xl">🪪</div>
-              <p className="text-gray-400 text-sm">Tap to upload ID photo</p>
-              <p className="text-gray-600 text-xs">JPG, PNG — max 10 MB</p>
-            </div>
+              <button onClick={captureSelfie}
+                className="absolute bottom-5 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[#00C853] border-4 border-white shadow-lg" />
+            </>
           )}
-        </label>
-
-        {idPreview && (
-          <p className="text-emerald-400 text-sm text-center mt-2">
-            ✓ {idFile?.name}
-          </p>
-        )}
-
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={() => { setStep("selfie"); setIdFile(null); setIdPreview(null); }}
-            className="flex-1 py-3 rounded-xl border border-gray-700 text-gray-300 text-sm font-medium hover:border-gray-500 transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleUpload}
-            disabled={!idFile || uploading}
-            className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/40 text-white text-sm font-semibold transition-colors"
-          >
-            {uploading ? "Uploading..." : "Submit"}
-          </button>
         </div>
-      </Layout>
-    );
-  }
+      ) : (
+        <div className="space-y-3">
+          <div className="rounded-3xl overflow-hidden aspect-[3/4] w-full">
+            <img src={selfiePreview} alt="Selfie" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => { setSelfieBlob(null); setSelfiePreview(null); startCamera(); }}
+              className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-700 text-sm font-semibold">Retake</button>
+            <button onClick={() => setStep("id_upload")}
+              className="flex-1 py-3 rounded-2xl bg-[#00C853] text-white text-sm font-bold">Use this photo</button>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
 
-  // ── STEP 3: Status ──────────────────────────────────────────────
+  if (step === "id_upload") return (
+    <Layout step={2} title="Upload your ID" subtitle="Take a clear photo of your national ID or passport.">
+      {error && <ErrorBanner msg={error} />}
+      <label className={`block w-full rounded-3xl border-2 border-dashed cursor-pointer overflow-hidden transition-colors
+        ${idPreview ? "border-[#00C853]" : "border-gray-200 hover:border-gray-300"}`}>
+        <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+          const f = e.target.files?.[0]; if (!f) return;
+          setIdFile(f); setIdPreview(URL.createObjectURL(f)); setError("");
+        }} />
+        {idPreview
+          ? <img src={idPreview} alt="ID" className="w-full object-cover max-h-56" />
+          : <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-2xl">🪪</div>
+              <p className="text-gray-500 text-sm">Tap to upload ID photo</p>
+              <p className="text-gray-400 text-xs">JPG, PNG — max 10 MB</p>
+            </div>
+        }
+      </label>
+      {idPreview && <p className="text-[#00C853] text-sm text-center mt-2">✓ {idFile?.name}</p>}
+      <div className="flex gap-3 mt-4">
+        <button onClick={() => { setStep("selfie"); setIdFile(null); setIdPreview(null); }}
+          className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-700 text-sm font-semibold">Back</button>
+        <button onClick={handleUpload} disabled={!idFile || uploading}
+          className="flex-1 py-3 rounded-2xl bg-[#00C853] disabled:opacity-40 text-white text-sm font-bold">
+          {uploading ? "Uploading..." : "Submit"}
+        </button>
+      </div>
+    </Layout>
+  );
+
   return (
     <Layout step={3} title="Verification status" subtitle="We're reviewing your documents.">
-      <div className="flex flex-col items-center gap-5 py-4">
-        {status === "pending" && (
-          <>
-            <div className="w-16 h-16 rounded-full bg-yellow-500/10 flex items-center justify-center text-3xl animate-pulse">⏳</div>
-            <div className="text-center">
-              <p className="text-white font-semibold">Under review</p>
-              <p className="text-gray-400 text-sm mt-1">This usually takes under a minute.</p>
-            </div>
-            <div className="flex gap-1">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="w-2 h-2 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-              ))}
-            </div>
-          </>
-        )}
-        {status === "approved" && (
-          <>
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-3xl">✅</div>
-            <div className="text-center">
-              <p className="text-white font-semibold">Identity verified</p>
-              <p className="text-gray-400 text-sm mt-1">Redirecting to your dashboard...</p>
-            </div>
-          </>
-        )}
-        {(status === "rejected" || status === "flagged") && (
-          <>
-            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-3xl">❌</div>
-            <div className="text-center">
-              <p className="text-white font-semibold">Verification failed</p>
-              <p className="text-gray-400 text-sm mt-1">
-                {status === "flagged"
-                  ? "Your documents are under manual review. We'll notify you shortly."
-                  : "We could not verify your identity. Please try again."}
-              </p>
-            </div>
-            {status === "rejected" && (
-              <button
-                onClick={() => { setStep("selfie"); setSelfieBlob(null); setSelfiePreview(null); setIdFile(null); setIdPreview(null); setStatus("pending"); }}
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold transition-colors"
-              >
-                Try again
-              </button>
-            )}
-          </>
-        )}
+      <div className="flex flex-col items-center gap-4 py-4">
+        {status === "pending" && <>
+          <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center text-3xl animate-pulse">⏳</div>
+          <div className="text-center">
+            <p className="font-bold text-black">Under review</p>
+            <p className="text-gray-500 text-sm mt-1">This usually takes under a minute.</p>
+          </div>
+          <div className="flex gap-1">
+            {[0,1,2].map((i) => <div key={i} className="w-2 h-2 rounded-full bg-[#00C853] animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
+          </div>
+        </>}
+        {status === "approved" && <>
+          <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center text-3xl">✅</div>
+          <div className="text-center">
+            <p className="font-bold text-black">Identity verified</p>
+            <p className="text-gray-500 text-sm mt-1">Redirecting to your dashboard...</p>
+          </div>
+        </>}
+        {(status === "rejected" || status === "flagged") && <>
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center text-3xl">❌</div>
+          <div className="text-center">
+            <p className="font-bold text-black">Verification failed</p>
+            <p className="text-gray-500 text-sm mt-1">{status === "flagged" ? "Under manual review. We'll notify you." : "Please try again."}</p>
+          </div>
+          {status === "rejected" && (
+            <button onClick={() => { setStep("selfie"); setSelfieBlob(null); setSelfiePreview(null); setIdFile(null); setIdPreview(null); setStatus("pending"); }}
+              className="w-full py-3 rounded-2xl bg-[#00C853] text-white text-sm font-bold">Try again</button>
+          )}
+        </>}
       </div>
     </Layout>
   );
 }
 
-// ── Shared layout ────────────────────────────────────────────────
-function Layout({ step, title, subtitle, children }: {
-  step: number; title: string; subtitle: string; children: React.ReactNode;
-}) {
+function Layout({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <span className="text-2xl font-bold text-white tracking-tight">
-            Neo<span className="text-emerald-400">Bank</span>
-          </span>
-          {/* Progress dots */}
-          <div className="flex justify-center gap-2 mt-4">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className={`h-1.5 rounded-full transition-all duration-300
-                ${s === step ? "w-8 bg-emerald-500" : s < step ? "w-4 bg-emerald-700" : "w-4 bg-gray-700"}`} />
-            ))}
-          </div>
+    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center px-5 py-10">
+      <div className="mb-6 text-center">
+        <h1 className="text-3xl font-bold text-black">neo<span className="text-[#00C853]">.</span></h1>
+        <div className="flex justify-center gap-2 mt-4">
+          {[1,2,3].map((s) => (
+            <div key={s} className={`h-1.5 rounded-full transition-all duration-300
+              ${s === step ? "w-8 bg-[#00C853]" : s < step ? "w-4 bg-[#00C853]/40" : "w-4 bg-gray-200"}`} />
+          ))}
         </div>
-        <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800">
-          <h1 className="text-white text-xl font-semibold mb-1">{title}</h1>
-          <p className="text-gray-400 text-sm mb-5">{subtitle}</p>
-          {children}
-        </div>
+      </div>
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm p-6">
+        <h2 className="text-xl font-bold text-black mb-1">{title}</h2>
+        <p className="text-gray-500 text-sm mb-5">{subtitle}</p>
+        {children}
       </div>
     </div>
   );
 }
 
 function ErrorBanner({ msg }: { msg: string }) {
-  return (
-    <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
-      {msg}
-    </div>
-  );
+  return <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">{msg}</div>;
 }
