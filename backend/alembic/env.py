@@ -7,9 +7,10 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.core.config import settings
 from app.db.session import Base
+import app.models  # noqa: F401 — registers all models with Base.metadata
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_DIRECT)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL_DIRECT or settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -17,7 +18,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
-    url = settings.DATABASE_URL_DIRECT
+    url = settings.DATABASE_URL_DIRECT or settings.DATABASE_URL
     context.configure(
         url=url,
         target_metadata=target_metadata,
