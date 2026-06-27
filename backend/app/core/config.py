@@ -1,4 +1,8 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings
+
+_ENV_FILE = str(Path(__file__).parent.parent.parent.parent / ".env")
+
 
 class Settings(BaseSettings):
     # Database
@@ -40,6 +44,6 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
 
     class Config:
-        env_file = ".env"
+        env_file = _ENV_FILE
 
 settings = Settings()
