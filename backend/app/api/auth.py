@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -19,6 +19,7 @@ from app.db.session import get_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
+from app.services.email_service import send_welcome_email
 from app.services.otp import generate_and_store_otp, verify_and_consume_otp
 from app.services.rate_limiter import check_rate_limit
 
@@ -49,7 +50,11 @@ class VerifyOTPRequest(BaseModel):
 
 
 @router.post("/register", response_model=UserRegisterResponse, summary="Register a new customer")
-async def register(body: UserRegisterRequest, db: Session = Depends(get_db)):
+async def register(
+    body: UserRegisterRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     existing_user = (
         db.query(User)
         .filter(or_(User.email == body.email, User.phone == body.phone))
@@ -79,6 +84,12 @@ async def register(body: UserRegisterRequest, db: Session = Depends(get_db)):
     )
     db.commit()
     db.refresh(user)
+
+    background_tasks.add_task(
+        send_welcome_email,
+        to_email=user.email,
+        full_name=user.full_name,
+    )
 
     access_token, _ = create_access_token(str(user.id), role=user.role.value)
     refresh_token, _ = create_refresh_token(str(user.id), role=user.role.value)
@@ -116,17 +127,20 @@ async def refresh(body: RefreshRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
         ) from exc
+
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not a refresh token",
         )
+
     jti = payload.get("jti")
     if await is_blacklisted(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token already revoked",
         )
+
     await blacklist_token(jti, expire_minutes=settings.JWT_REFRESH_EXPIRE_DAYS * 24 * 60)
     access_token, _ = create_access_token(payload["sub"], role=payload.get("role"))
     refresh_token, _ = create_refresh_token(payload["sub"], role=payload.get("role"))
@@ -146,6 +160,7 @@ async def logout(body: LogoutRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         ) from exc
+
     await blacklist_token(payload["jti"])
     return {"message": "Logged out successfully"}
 
@@ -169,9 +184,11 @@ async def verify_otp(
 ):
     await check_rate_limit(request, key_prefix="verify_otp", max_requests=5, window_seconds=300)
     valid = await verify_and_consume_otp(body.user_id, body.code)
+
     if not valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired OTP",
         )
+
     return {"message": "OTP verified"}
