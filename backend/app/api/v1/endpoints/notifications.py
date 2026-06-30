@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.db.session import get_db
@@ -11,7 +11,6 @@ from app.schemas.notification import (
     ReadAllNotificationsResponse,
 )
 from app.schemas.user import CurrentUser
-
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -27,29 +26,28 @@ def get_user_id(current_user: CurrentUser) -> int:
 
 
 @router.get("", response_model=NotificationPageResponse)
-def list_notifications(
+async def list_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     user_id = get_user_id(current_user)
     offset = (page - 1) * page_size
 
-    total = (
-        db.query(func.count(Notification.id))
-        .filter(Notification.user_id == user_id)
-        .scalar()
+    total_result = await db.execute(
+        select(func.count(Notification.id)).where(Notification.user_id == user_id)
     )
+    total = total_result.scalar_one()
 
-    notifications = (
-        db.query(Notification)
-        .filter(Notification.user_id == user_id)
+    notifications_result = await db.execute(
+        select(Notification)
+        .where(Notification.user_id == user_id)
         .order_by(Notification.read.asc(), Notification.created_at.desc())
         .offset(offset)
         .limit(page_size)
-        .all()
     )
+    notifications = notifications_result.scalars().all()
 
     return {
         "items": notifications,
@@ -60,21 +58,20 @@ def list_notifications(
 
 
 @router.patch("/{notification_id}/read", response_model=NotificationResponse)
-def mark_notification_as_read(
+async def mark_notification_as_read(
     notification_id: int,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     user_id = get_user_id(current_user)
 
-    notification = (
-        db.query(Notification)
-        .filter(
+    result = await db.execute(
+        select(Notification).where(
             Notification.id == notification_id,
             Notification.user_id == user_id,
         )
-        .first()
     )
+    notification = result.scalar_one_or_none()
 
     if notification is None:
         raise HTTPException(
@@ -83,28 +80,29 @@ def mark_notification_as_read(
         )
 
     notification.read = True
-    db.commit()
-    db.refresh(notification)
+
+    await db.commit()
+    await db.refresh(notification)
 
     return notification
 
 
 @router.patch("/read-all", response_model=ReadAllNotificationsResponse)
-def mark_all_notifications_as_read(
-    db: Session = Depends(get_db),
+async def mark_all_notifications_as_read(
+    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     user_id = get_user_id(current_user)
 
-    updated_count = (
-        db.query(Notification)
-        .filter(
+    result = await db.execute(
+        update(Notification)
+        .where(
             Notification.user_id == user_id,
             Notification.read.is_(False),
         )
-        .update({"read": True}, synchronize_session=False)
+        .values(read=True)
     )
 
-    db.commit()
+    await db.commit()
 
-    return {"updated_count": updated_count}
+    return {"updated_count": result.rowcount or 0}
