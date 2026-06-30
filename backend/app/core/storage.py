@@ -53,5 +53,6 @@ storage_client = _build_storage_client()
 
 def upload_file(file_path: str, destination_key: str) -> str:
     # Week 2 will replace this stub with the real S3 upload flow.
+    # When boto3 uploads are invoked from async routes, wrap them in run_in_executor because boto3 is sync-only.
     _ = destination_key
     return file_path

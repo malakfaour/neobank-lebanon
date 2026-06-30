@@ -2,7 +2,8 @@ import logging
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy import or_
+from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -15,7 +16,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.session import get_db
+from app.db.session import get_async_db, get_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
@@ -53,12 +54,10 @@ class VerifyOTPRequest(BaseModel):
 async def register(
     body: UserRegisterRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
-    existing_user = (
-        db.query(User)
-        .filter(or_(User.email == body.email, User.phone == body.phone))
-        .first()
+    existing_user = await db.scalar(
+        select(User).where(or_(User.email == body.email, User.phone == body.phone))
     )
     if existing_user:
         detail = "Email already exists" if existing_user.email == body.email else "Phone already exists"
@@ -73,7 +72,7 @@ async def register(
         role=UserRole.customer,
     )
     db.add(user)
-    db.flush()
+    await db.flush()
 
     db.add_all(
         [
@@ -82,8 +81,8 @@ async def register(
             Wallet(user_id=user.id, currency=WalletCurrency.USDT, balance=0.0),
         ]
     )
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     background_tasks.add_task(
         send_welcome_email,
