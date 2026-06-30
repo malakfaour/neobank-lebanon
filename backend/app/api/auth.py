@@ -15,7 +15,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.session import get_async_db
+from app.db.session import get_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
@@ -53,14 +53,19 @@ class VerifyOTPRequest(BaseModel):
 async def register(
     body: UserRegisterRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_async_db),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
         select(User).where(or_(User.email == body.email, User.phone == body.phone))
     )
     existing_user = result.scalar_one_or_none()
+
     if existing_user:
-        detail = "Email already exists" if existing_user.email == body.email else "Phone already exists"
+        detail = (
+            "Email already exists"
+            if existing_user.email == body.email
+            else "Phone already exists"
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
     user = User(
@@ -92,6 +97,7 @@ async def register(
 
     access_token, _ = create_access_token(str(user.id), role=user.role.value)
     refresh_token, _ = create_refresh_token(str(user.id), role=user.role.value)
+
     return UserRegisterResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -100,17 +106,25 @@ async def register(
 
 
 @router.post("/login", summary="Login with email and password")
-async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_async_db)):
+async def login(
+    request: Request,
+    body: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
     await check_rate_limit(request, key_prefix="login", max_requests=5, window_seconds=60)
+
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
+
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
+
     access_token, _ = create_access_token(str(user.id), role=user.role.value)
     refresh_token, _ = create_refresh_token(str(user.id), role=user.role.value)
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -135,6 +149,7 @@ async def refresh(body: RefreshRequest):
         )
 
     jti = payload.get("jti")
+
     if await is_blacklisted(jti):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -142,8 +157,10 @@ async def refresh(body: RefreshRequest):
         )
 
     await blacklist_token(jti, expire_minutes=settings.JWT_REFRESH_EXPIRE_DAYS * 24 * 60)
+
     access_token, _ = create_access_token(payload["sub"], role=payload.get("role"))
     refresh_token, _ = create_refresh_token(payload["sub"], role=payload.get("role"))
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -162,6 +179,7 @@ async def logout(body: LogoutRequest):
         ) from exc
 
     await blacklist_token(payload["jti"])
+
     return {"message": "Logged out successfully"}
 
 
@@ -171,8 +189,14 @@ async def send_otp(
     body: SendOTPRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    await check_rate_limit(request, key_prefix="send_otp", max_requests=3, window_seconds=300)
+    await check_rate_limit(
+        request,
+        key_prefix="send_otp",
+        max_requests=3,
+        window_seconds=300,
+    )
     await generate_and_store_otp(body.user_id)
+
     return {"message": f"OTP sent to user {body.user_id}"}
 
 
@@ -182,7 +206,13 @@ async def verify_otp(
     body: VerifyOTPRequest,
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    await check_rate_limit(request, key_prefix="verify_otp", max_requests=5, window_seconds=300)
+    await check_rate_limit(
+        request,
+        key_prefix="verify_otp",
+        max_requests=5,
+        window_seconds=300,
+    )
+
     valid = await verify_and_consume_otp(body.user_id, body.code)
 
     if not valid:
