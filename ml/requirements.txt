@@ -1,6 +1,7 @@
 # KYC Face Verification & Liveness
 deepface
 opencv-python
+mtcnn
  
 # Fraud Detection
 xgboost
