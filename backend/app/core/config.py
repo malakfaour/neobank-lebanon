@@ -40,6 +40,6 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
 
     class Config:
-        env_file = ".env"
+        env_file = "../.env"
 
 settings = Settings()
