@@ -1,7 +1,5 @@
 from celery import Celery
-
 from app.core.config import settings
-
 
 celery_app = Celery(
     "neobank",
@@ -11,6 +9,7 @@ celery_app = Celery(
 
 celery_app.conf.imports = (
     "app.tasks.exchange_tasks",
+    "app.tasks.transaction_tasks",
 )
 
 celery_app.conf.beat_schedule = {
