@@ -15,7 +15,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
@@ -53,7 +53,7 @@ class VerifyOTPRequest(BaseModel):
 async def register(
     body: UserRegisterRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     result = await db.execute(
         select(User).where(or_(User.email == body.email, User.phone == body.phone))
@@ -100,7 +100,7 @@ async def register(
 
 
 @router.post("/login", summary="Login with email and password")
-async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_async_db)):
     await check_rate_limit(request, key_prefix="login", max_requests=5, window_seconds=60)
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
@@ -191,4 +191,4 @@ async def verify_otp(
             detail="Invalid or expired OTP",
         )
 
-    return {"message": "OTP verified successfully"}
+    return {"message": "OTP verified"}

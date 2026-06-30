@@ -2,10 +2,11 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, require_role
-from app.db.session import get_db
+from app.db.session import get_async_db
 from app.models.kyc_record import KYCRecord, KYCRecordStatus
 from app.models.user import User, UserRole
 from app.schemas.kyc import (
@@ -40,6 +41,7 @@ async def _save_upload_to_tmp(upload: UploadFile) -> str:
     file_path = UPLOAD_DIR / f"{uuid4()}{suffix}"
     file_bytes = await upload.read()
 
+    # This synchronous temp-file write is acceptable for the Week 1 stub; revisit it once Week 2 S3 upload is wired in.
     with file_path.open("wb") as buffer:
         buffer.write(file_bytes)
 
@@ -50,9 +52,9 @@ async def _save_upload_to_tmp(upload: UploadFile) -> str:
 @router.get("/status", response_model=KYCStatusResponse, summary="Get the current user's KYC status")
 async def get_kyc_status(
     current_user: CurrentUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
-    user = db.query(User).filter(User.id == int(current_user.id)).first()
+    user = await db.scalar(select(User).where(User.id == int(current_user.id)))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -71,12 +73,12 @@ async def upload_kyc_documents(
     selfie: UploadFile = File(...),
     id_photo: UploadFile = File(...),
     current_user: CurrentUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
 ):
     _validate_image_upload(selfie, "selfie")
     _validate_image_upload(id_photo, "id_photo")
 
-    user = db.query(User).filter(User.id == int(current_user.id)).first()
+    user = await db.scalar(select(User).where(User.id == int(current_user.id)))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -86,7 +88,7 @@ async def upload_kyc_documents(
     selfie_path = await _save_upload_to_tmp(selfie)
     id_photo_path = await _save_upload_to_tmp(id_photo)
 
-    kyc_record = db.query(KYCRecord).filter(KYCRecord.user_id == user.id).first()
+    kyc_record = await db.scalar(select(KYCRecord).where(KYCRecord.user_id == user.id))
     if not kyc_record:
         kyc_record = KYCRecord(user_id=user.id)
         db.add(kyc_record)
@@ -97,8 +99,8 @@ async def upload_kyc_documents(
     kyc_record.status = KYCRecordStatus.pending
     kyc_record.reviewed_at = None
 
-    db.commit()
-    db.refresh(kyc_record)
+    await db.commit()
+    await db.refresh(kyc_record)
 
     return KYCUploadResponse(
         kyc_record_id=kyc_record.id,
@@ -111,12 +113,12 @@ async def upload_kyc_documents(
 @router.patch("/status", response_model=KYCStatusResponse, summary="Update a user's KYC status")
 async def update_kyc_status(
     body: KYCStatusUpdateRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_async_db),
     current_user: CurrentUser = Depends(
         require_role(UserRole.admin, UserRole.compliance_officer)
     ),
 ):
-    user = db.query(User).filter(User.id == body.user_id).first()
+    user = await db.scalar(select(User).where(User.id == body.user_id))
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -124,7 +126,7 @@ async def update_kyc_status(
         )
 
     user.kyc_status = body.status
-    db.commit()
-    db.refresh(user)
+    await db.commit()
+    await db.refresh(user)
 
     return KYCStatusResponse(user_id=user.id, kyc_status=user.kyc_status)
