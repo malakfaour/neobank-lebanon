@@ -7,6 +7,7 @@ from app.api.auth import router as auth_router
 from app.api.chatbot import router as chatbot_router
 from app.api.kyc import router as kyc_router
 from app.api.v1.endpoints.exchange import router as exchange_router
+from app.api.v1.endpoints.accounts import router as accounts_router
 from app.api.v1.endpoints.notifications import router as notifications_router
 from app.core.config import settings
 from app.core.redis import redis_client
@@ -50,5 +51,4 @@ async def health_check():
         "redis": redis_status,
     }
 
-from app.api.v1.endpoints.accounts import router as accounts_router
 app.include_router(accounts_router, prefix="/api/v1")
