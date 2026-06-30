@@ -1,10 +1,12 @@
-from pydantic import BaseModel
 from enum import Enum
+from pydantic import BaseModel
+
 
 class CurrencyEnum(str, Enum):
     USD = "USD"
     LBP = "LBP"
     USDT = "USDT"
+
 
 class WalletResponse(BaseModel):
     id: int

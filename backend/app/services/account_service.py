@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.wallet import Wallet, CurrencyEnum
+from app.models.wallet import Wallet, WalletCurrency
 from app.utils.account_utils import generate_account_number, generate_iban
 
 async def create_wallets_for_user(user_id: int, db: AsyncSession):
     wallets = []
-    for currency in CurrencyEnum:
+    for currency in WalletCurrency:
         result = await db.execute(
             select(Wallet).where(
                 Wallet.user_id == user_id,

@@ -1,16 +1,14 @@
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
-import os
-import sys
 
-# Add backend folder to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.config import settings
-from app.core.database import Base
-from app.models import wallet
-from app.models import user
+from app.db.session import Base
+import app.models  # noqa: F401 — registers all models with Base.metadata
 
 config = context.config
 
