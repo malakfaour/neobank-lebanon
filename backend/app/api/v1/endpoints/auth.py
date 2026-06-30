@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from app.db.session import get_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
+from app.services.email_service import send_welcome_email
 from app.services.otp import generate_and_store_otp, verify_and_consume_otp
 from app.services.rate_limiter import check_rate_limit
 
@@ -49,7 +50,11 @@ class VerifyOTPRequest(BaseModel):
 
 
 @router.post("/register", response_model=UserRegisterResponse, summary="Register a new customer")
-async def register(body: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    body: UserRegisterRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(User).where(or_(User.email == body.email, User.phone == body.phone))
     )
@@ -78,6 +83,12 @@ async def register(body: UserRegisterRequest, db: AsyncSession = Depends(get_db)
     )
     await db.commit()
     await db.refresh(user)
+
+    background_tasks.add_task(
+        send_welcome_email,
+        to_email=user.email,
+        full_name=user.full_name,
+    )
 
     access_token, _ = create_access_token(str(user.id), role=user.role.value)
     refresh_token, _ = create_refresh_token(str(user.id), role=user.role.value)

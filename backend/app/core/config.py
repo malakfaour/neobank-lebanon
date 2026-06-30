@@ -5,7 +5,11 @@ _ENV_FILE = str(Path(__file__).parent.parent.parent.parent / ".env")
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=_ENV_FILE)
+    model_config = SettingsConfigDict(
+        env_file=_ENV_FILE,
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # Database
     DATABASE_URL: str
@@ -40,10 +44,14 @@ class Settings(BaseSettings):
     S3_ENDPOINT_URL: str = ""
 
     # Email
-    SMTP_HOST: str = "smtp.gmail.com"
+    EMAIL_PROVIDER: str = "console"  # console, smtp, sendgrid
+    EMAIL_FROM: str = "NeoBank Lebanon <no-reply@neobank.local>"
+    SMTP_HOST: str | None = None
     SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_USE_TLS: bool = True
+    SENDGRID_API_KEY: str | None = None
 
     # Frontend
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
