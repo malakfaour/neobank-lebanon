@@ -11,7 +11,7 @@ from app.core.config import settings
 
 
 def _get_bucket_name() -> str:
-    return settings.S3_BUCKET or settings.AWS_BUCKET_NAME
+    return settings.S3_BUCKET or settings.AWS_BUCKET_NAME or "neobank-kyc"
 
 
 def _get_region_name() -> str:
@@ -51,7 +51,45 @@ def _build_storage_client() -> Any | None:
 storage_client = _build_storage_client()
 
 
-def upload_file(file_path: str, destination_key: str) -> str:
-    # Week 2 will replace this stub with the real S3 upload flow.
-    _ = destination_key
-    return file_path
+def _require_storage_client() -> Any:
+    global storage_client
+    if storage_client is None:
+        storage_client = _build_storage_client()
+    if storage_client is None:
+        raise RuntimeError("S3 storage client is not configured")
+    return storage_client
+
+
+def upload_file(
+    file_source: str | bytes,
+    destination_key: str,
+    bucket_name: str | None = None,
+    extra_args: dict[str, Any] | None = None,
+) -> str:
+    client = _require_storage_client()
+    resolved_bucket = bucket_name or _get_bucket_name()
+    resolved_extra_args = extra_args or {}
+
+    if isinstance(file_source, bytes):
+        client.put_object(
+            Bucket=resolved_bucket,
+            Key=destination_key,
+            Body=file_source,
+            **resolved_extra_args,
+        )
+        return destination_key
+
+    upload_kwargs: dict[str, Any] = {}
+    if resolved_extra_args:
+        upload_kwargs["ExtraArgs"] = resolved_extra_args
+    client.upload_file(file_source, resolved_bucket, destination_key, **upload_kwargs)
+    return destination_key
+
+
+def get_presigned_url(s3_key: str, ttl_seconds: int = 3600) -> str:
+    client = _require_storage_client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": _get_bucket_name(), "Key": s3_key},
+        ExpiresIn=ttl_seconds,
+    )
