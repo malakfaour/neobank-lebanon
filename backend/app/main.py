@@ -1,14 +1,13 @@
 import logging
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from app.api.auth import router as auth_router
 from app.api.chatbot import router as chatbot_router
 from app.api.kyc import router as kyc_router
 from app.api.v1.endpoints.exchange import router as exchange_router
 from app.api.v1.endpoints.accounts import router as accounts_router
 from app.api.v1.endpoints.notifications import router as notifications_router
+from app.api.v1.endpoints.transactions import router as transactions_router
 from app.core.config import settings
 from app.core.redis import redis_client
 
@@ -35,6 +34,8 @@ app.include_router(kyc_router, prefix="/kyc", tags=["kyc"])
 app.include_router(chatbot_router, prefix="/chatbot", tags=["chatbot"])
 app.include_router(exchange_router)
 app.include_router(notifications_router)
+app.include_router(transactions_router)
+app.include_router(accounts_router, prefix="/api/v1")
 
 
 @app.get("/health")
@@ -44,11 +45,8 @@ async def health_check():
         redis_status = "ok"
     except Exception:
         redis_status = "unavailable"
-
     return {
         "status": "ok",
         "env": settings.APP_ENV,
         "redis": redis_status,
     }
-
-app.include_router(accounts_router, prefix="/api/v1")
