@@ -1,15 +1,18 @@
-from pathlib import Path
-from uuid import uuid4
+import asyncio
+from functools import partial
+from time import time
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user, require_role
+from app.core.storage import get_presigned_url, upload_file
 from app.db.session import get_async_db
 from app.models.kyc_record import KYCRecord, KYCRecordStatus
 from app.models.user import User, UserRole
 from app.schemas.kyc import (
+    KYCDocumentAccessResponse,
     KYCStatusResponse,
     KYCStatusUpdateRequest,
     KYCUploadResponse,
@@ -19,12 +22,8 @@ from app.schemas.user import CurrentUser
 router = APIRouter()
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/jpg"}
-IMAGE_SUFFIXES = {
-    "image/jpeg": ".jpg",
-    "image/jpg": ".jpg",
-    "image/png": ".png",
-}
-UPLOAD_DIR = Path("/tmp")
+KYC_BUCKET_NAME = "neobank-kyc"
+SSE_S3_EXTRA_ARGS = {"ServerSideEncryption": "AES256"}
 
 
 def _validate_image_upload(upload: UploadFile, field_name: str) -> None:
@@ -35,18 +34,8 @@ def _validate_image_upload(upload: UploadFile, field_name: str) -> None:
         )
 
 
-async def _save_upload_to_tmp(upload: UploadFile) -> str:
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    suffix = IMAGE_SUFFIXES[upload.content_type]
-    file_path = UPLOAD_DIR / f"{uuid4()}{suffix}"
-    file_bytes = await upload.read()
-
-    # This synchronous temp-file write is acceptable for the Week 1 stub; revisit it once Week 2 S3 upload is wired in.
-    with file_path.open("wb") as buffer:
-        buffer.write(file_bytes)
-
-    await upload.close()
-    return str(file_path)
+def _build_kyc_key(user_id: int, prefix: str, timestamp: int) -> str:
+    return f"{user_id}/{prefix}_{timestamp}.jpg"
 
 
 @router.get("/status", response_model=KYCStatusResponse, summary="Get the current user's KYC status")
@@ -85,16 +74,43 @@ async def upload_kyc_documents(
             detail="User not found",
         )
 
-    selfie_path = await _save_upload_to_tmp(selfie)
-    id_photo_path = await _save_upload_to_tmp(id_photo)
+    timestamp = int(time())
+    selfie_key = _build_kyc_key(user.id, "selfie", timestamp)
+    id_photo_key = _build_kyc_key(user.id, "id", timestamp)
+    selfie_bytes = await selfie.read()
+    id_photo_bytes = await id_photo.read()
+    await selfie.close()
+    await id_photo.close()
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        None,
+        partial(
+            upload_file,
+            selfie_bytes,
+            selfie_key,
+            bucket_name=KYC_BUCKET_NAME,
+            extra_args={**SSE_S3_EXTRA_ARGS, "ContentType": selfie.content_type},
+        ),
+    )
+    await loop.run_in_executor(
+        None,
+        partial(
+            upload_file,
+            id_photo_bytes,
+            id_photo_key,
+            bucket_name=KYC_BUCKET_NAME,
+            extra_args={**SSE_S3_EXTRA_ARGS, "ContentType": id_photo.content_type},
+        ),
+    )
 
     kyc_record = await db.scalar(select(KYCRecord).where(KYCRecord.user_id == user.id))
     if not kyc_record:
         kyc_record = KYCRecord(user_id=user.id)
         db.add(kyc_record)
 
-    kyc_record.selfie_url = selfie_path
-    kyc_record.id_photo_url = id_photo_path
+    kyc_record.selfie_url = selfie_key
+    kyc_record.id_photo_url = id_photo_key
     kyc_record.match_score = None
     kyc_record.status = KYCRecordStatus.pending
     kyc_record.reviewed_at = None
@@ -107,6 +123,53 @@ async def upload_kyc_documents(
         selfie_url=kyc_record.selfie_url,
         id_photo_url=kyc_record.id_photo_url,
         status=kyc_record.status,
+    )
+
+
+@router.get(
+    "/{kyc_record_id}/documents",
+    response_model=KYCDocumentAccessResponse,
+    summary="Get presigned KYC document URLs for a record",
+)
+async def get_kyc_document_urls(
+    kyc_record_id: int,
+    current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    kyc_record = await db.scalar(select(KYCRecord).where(KYCRecord.id == kyc_record_id))
+    if not kyc_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="KYC record not found",
+        )
+
+    allowed_roles = {UserRole.admin, UserRole.compliance_officer}
+    if kyc_record.user_id != int(current_user.id) and current_user.role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+
+    loop = asyncio.get_running_loop()
+    selfie_presigned_url = None
+    id_photo_presigned_url = None
+    if kyc_record.selfie_url:
+        selfie_presigned_url = await loop.run_in_executor(
+            None,
+            partial(get_presigned_url, kyc_record.selfie_url),
+        )
+    if kyc_record.id_photo_url:
+        id_photo_presigned_url = await loop.run_in_executor(
+            None,
+            partial(get_presigned_url, kyc_record.id_photo_url),
+        )
+
+    return KYCDocumentAccessResponse(
+        kyc_record_id=kyc_record.id,
+        selfie_key=kyc_record.selfie_url,
+        id_photo_key=kyc_record.id_photo_url,
+        selfie_presigned_url=selfie_presigned_url,
+        id_photo_presigned_url=id_photo_presigned_url,
     )
 
 

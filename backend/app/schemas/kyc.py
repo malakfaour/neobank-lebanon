@@ -19,3 +19,11 @@ class KYCUploadResponse(BaseModel):
     selfie_url: str
     id_photo_url: str
     status: KYCRecordStatus
+
+
+class KYCDocumentAccessResponse(BaseModel):
+    kyc_record_id: int
+    selfie_key: str | None
+    id_photo_key: str | None
+    selfie_presigned_url: str | None
+    id_photo_presigned_url: str | None
