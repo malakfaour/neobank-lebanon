@@ -1,6 +1,12 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = str(Path(__file__).parent.parent.parent.parent / ".env")
+
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=_ENV_FILE)
+
     # Database
     DATABASE_URL: str
     DATABASE_URL_DIRECT: str = ""
@@ -29,6 +35,9 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = ""
     AWS_BUCKET_NAME: str = ""
     AWS_REGION: str = "eu-central-1"
+    S3_BUCKET: str = ""
+    S3_REGION: str = ""
+    S3_ENDPOINT_URL: str = ""
 
     # Email
     SMTP_HOST: str = "smtp.gmail.com"
@@ -39,7 +48,5 @@ class Settings(BaseSettings):
     # Frontend
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
 
-    class Config:
-        env_file = "../.env"
 
 settings = Settings()
