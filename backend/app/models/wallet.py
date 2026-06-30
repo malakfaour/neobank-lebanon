@@ -4,7 +4,7 @@ from sqlalchemy import Column, DateTime, Enum as SAEnum, Float, ForeignKey, Inte
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.session import Base
+from app.db.base import Base
 
 
 class WalletCurrency(str, enum.Enum):
