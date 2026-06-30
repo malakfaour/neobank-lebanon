@@ -2,7 +2,7 @@ import enum
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import relationship
 
-from app.db.session import Base
+from app.db.base import Base
 
 
 class KYCRecordStatus(str, enum.Enum):
