@@ -4,7 +4,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.core.config import settings
@@ -16,7 +15,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.db.session import get_async_db, get_db
+from app.db.session import get_async_db
 from app.models.user import KYCStatus, User, UserRole
 from app.models.wallet import Wallet, WalletCurrency
 from app.schemas.user import CurrentUser, UserRegisterRequest, UserRegisterResponse
@@ -56,9 +55,10 @@ async def register(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_async_db),
 ):
-    existing_user = await db.scalar(
+    result = await db.execute(
         select(User).where(or_(User.email == body.email, User.phone == body.phone))
     )
+    existing_user = result.scalar_one_or_none()
     if existing_user:
         detail = "Email already exists" if existing_user.email == body.email else "Phone already exists"
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
@@ -100,9 +100,10 @@ async def register(
 
 
 @router.post("/login", summary="Login with email and password")
-async def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_async_db)):
     await check_rate_limit(request, key_prefix="login", max_requests=5, window_seconds=60)
-    user = db.query(User).filter(User.email == body.email).first()
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
