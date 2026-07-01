@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.database import get_db
+from app.db.session import get_db
 from app.services.account_service import create_wallets_for_user
 from app.models.wallet import Wallet
 
