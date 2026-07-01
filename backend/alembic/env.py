@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from app.core.config import settings
-from app.db.session import Base
+from app.db.base import Base
 import app.models  # noqa: F401 — registers all models with Base.metadata
 
 config = context.config
